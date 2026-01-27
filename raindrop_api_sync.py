@@ -29,8 +29,7 @@ class RaindropSync:
         self.output_dir = Path(output_dir) / 'Raindrop'
         self.output_dir.mkdir(parents=True, exist_ok=True)
         
-        self.output_dir = Path(output_dir) / 'Raindrop'
-        self.output_dir.mkdir(parents=True, exist_ok=True)
+        self.created_files = []
     
 
     
