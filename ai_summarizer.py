@@ -346,13 +346,8 @@ def process_files(output_dir: str = '30_Resources/Raindrop', days: int = 3):
         except Exception as e:
             print(f"⚠️ 读取列表失败: {e}")
     else:
-        print(f"🔍 列表不存在，执行全量扫描 (最近 {days} 天)")
-        # Fallback to scan
-        cutoff_time = datetime.now() - timedelta(days=days)
-        for file_path in directory.glob('*.md'):
-            mtime = datetime.fromtimestamp(file_path.stat().st_mtime)
-            if mtime >= cutoff_time:
-                target_files.append(file_path)
+        print(f"🔍 同步列表不存在，跳过 AI 处理")
+
 
     print(f"🎯 待处理文件数: {len(target_files)}")
     
