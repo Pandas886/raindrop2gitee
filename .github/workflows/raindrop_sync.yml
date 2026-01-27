@@ -20,11 +20,8 @@ jobs:
 
       # 2. 检出 Gitee 私有仓库（存放笔记）
       - name: Checkout Gitee Repo
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ secrets.GITEE_USER }}/${{ secrets.GITEE_REPO }}
-          token: ${{ secrets.GITEE_TOKEN }}
-          path: gitee_workspace
+        run: |
+          git clone https://${{ secrets.GITEE_USER }}:${{ secrets.GITEE_TOKEN }}@gitee.com/${{ secrets.GITEE_USER }}/${{ secrets.GITEE_REPO }}.git gitee_workspace
 
       # 3. 设置 Python 环境 (使用 uv)
       - name: Install uv
