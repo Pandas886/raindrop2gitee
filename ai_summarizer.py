@@ -259,6 +259,105 @@ def process_files(output_dir: str = '30_Resources/Raindrop', days: int = 3):
             
         print(f"👉 处理: {file_path.name}")
         
+def inject_tags_into_frontmatter(content: str, tags: list[str]) -> str:
+    """
+    将标签插入到 FrontMatter 中
+    """
+    if not tags:
+        return content
+        
+    # Check for FrontMatter
+    fm_match = re.match(r'^---\n(.*?)\n---', content, re.DOTALL)
+    if not fm_match:
+        # No FM, create one
+        fm = "---\n"
+        fm += "tags:\n"
+        for tag in tags:
+            fm += f"  - {tag}\n"
+        fm += "---\n\n"
+        return fm + content
+        
+    fm_content = fm_match.group(1)
+    
+    # Check if tags key exists
+    if re.search(r'^tags:', fm_content, re.MULTILINE):
+        # Insert after "tags:"
+        # We assume standard yaml formatting created by our own script: "tags:\n"
+        new_tags_str = ""
+        for tag in tags:
+            new_tags_str += f"  - {tag}\n"
+            
+        # Replace "tags:\n" with "tags:\n  - tag1\n..."
+        # Use a safe replacement that looks for the line ending
+        new_fm_content = re.sub(r'(^tags:\s*\n)', rf'\1{new_tags_str}', fm_content, flags=re.MULTILINE)
+        
+        # If the regex didn't match (maybe inline tags: []), fallback to appending
+        if new_fm_content == fm_content:
+             # Try to match tags: without newline
+             pass 
+    else:
+        # Add tags key to end of FM
+        new_tags_block = "\ntags:\n"
+        for tag in tags:
+            new_tags_block += f"  - {tag}\n"
+        new_fm_content = fm_content + new_tags_block
+
+    return content.replace(fm_match.group(1), new_fm_content)
+
+
+def process_files(output_dir: str = '30_Resources/Raindrop', days: int = 3):
+    """
+    扫描并处理文件
+    """
+    dedao_token = os.getenv('DEDAO_API_TOKEN')
+    zhipu_key = os.getenv('ZHIPU_API_KEY')
+    
+    if not dedao_token:
+        print("❌ 未找到 DEDAO_API_TOKEN，跳过 AI 总结步骤")
+        return
+
+    ai_summarizer = AISummarizer(dedao_token)
+    
+    ai_tagger = None
+    if zhipu_key:
+        ai_tagger = AITagger(zhipu_key)
+        print("✨ 已启用 AI 自动标签 (Zhipu)")
+    
+    directory = Path(output_dir)
+    
+    if not directory.exists():
+        print(f"❌ 目录不存在: {directory}")
+        return
+
+    print(f"🔍 开始扫描目录: {directory}")
+    print(f"   处理最近 {days} 天修改的文件")
+
+    # 计算时间阈值
+    cutoff_time = datetime.now() - timedelta(days=days)
+    
+    count = 0
+    processed = 0
+    
+    for file_path in directory.glob('*.md'):
+        # 过滤修改时间
+        mtime = datetime.fromtimestamp(file_path.stat().st_mtime)
+        if mtime < cutoff_time:
+            continue
+            
+        count += 1
+        
+        # 检查是否已有总结
+        if has_ai_summary(file_path):
+            continue
+            
+        # 提取 URL
+        url = extract_url_from_file(file_path)
+        if not url:
+            print(f"⏩ 跳过 (无URL): {file_path.name}")
+            continue
+            
+        print(f"👉 处理: {file_path.name}")
+        
         # 1. 调用 AI 总结
         title, content = ai_summarizer.summarize(url)
         
@@ -270,19 +369,24 @@ def process_files(output_dir: str = '30_Resources/Raindrop', days: int = 3):
                 tags = ai_tagger.generate_tags(content[:2000]) # 限制长度防止超长
             
             try:
-                with open(file_path, 'a', encoding='utf-8') as f:
-                    f.write(f"\n\n## 🤖 AI 深度总结\n\n")
-                    if title:
-                        f.write(f"**{title}**\n\n")
-                    f.write(f"{content}\n")
-                    
-                    if tags:
-                        # Obsidian 格式: #Tag1 #Tag2
-                        tag_line = ' '.join([f"#{t}" for t in tags])
-                        f.write(f"\n**AI 标签**: {tag_line}\n")
-                        print(f"   🏷️  添加标签: {tag_line}")
+                # 读取原文件内容
+                file_content = file_path.read_text(encoding='utf-8')
+                
+                # 注入标签到 FrontMatter
+                if tags:
+                    file_content = inject_tags_into_frontmatter(file_content, tags)
+                    print(f"   🏷️  注入标签: {tags}")
+
+                # 追加总结内容
+                summary_block = f"\n\n## 🤖 AI 深度总结\n\n"
+                if title:
+                    summary_block += f"**{title}**\n\n"
+                summary_block += f"{content}\n"
+                
+                # 写入更新后的内容
+                file_path.write_text(file_content + summary_block, encoding='utf-8')
                         
-                print(f"   ✅ 已追加总结")
+                print(f"   ✅ 已更新文件")
                 processed += 1
                 # 避免触发频率限制，简单休眠
                 time.sleep(2)
