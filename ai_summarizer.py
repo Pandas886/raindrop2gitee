@@ -330,7 +330,8 @@ def process_files(output_dir: str = '30_Resources/Raindrop', days: int = 3):
         return
 
     # Check for report file
-    report_file = Path('new_files_list.txt')
+    workspace = os.getenv('GITHUB_WORKSPACE', '.')
+    report_file = Path(workspace) / 'new_files_list.txt'
     target_files = []
     
     if report_file.exists():
