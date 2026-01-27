@@ -227,6 +227,7 @@ class RaindropSync:
                     f.write(markdown_content)
                 
                 new_count += 1
+                self.created_files.append(filename)
                 print(f"✅ 新增: {filename}")
             
             except Exception as e:
