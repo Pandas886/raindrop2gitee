@@ -229,6 +229,10 @@ class RaindropSync:
                 
                 new_count += 1
                 print(f"✅ 新增: {filename}")
+            
+            except Exception as e:
+                print(f"❌ 处理书签出错 ({raindrop_id}): {e}")
+                continue
         
         print(f"\n📊 同步完成:")
         print(f"   - 新增: {new_count} 个文件")
