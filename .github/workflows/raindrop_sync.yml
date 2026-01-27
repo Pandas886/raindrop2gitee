@@ -38,8 +38,8 @@ jobs:
           cd scripts_repo
           uv run raindrop_api_sync.py
 
-      # 5. 提交并推送到 Gitee
-      - name: Commit and Push to Gitee
+      # 5. 提交并推送到 Gitee (第一次：原始数据)
+      - name: Push Raw Data
         working-directory: gitee_workspace
         run: |
           # 配置 Git 用户信息
@@ -50,14 +50,34 @@ jobs:
           git add .
           if git diff --staged --quiet; then
             echo "No changes to commit"
+          else
+            # 提交更改
+            timestamp=$(date "+%Y-%m-%d %H:%M:%S")
+            git commit -m "sync: Raindrop bookmarks $timestamp"
+            
+            # 推送回 Gitee
+            git push origin HEAD:main
+          fi
+
+      # 6. 运行 AI 总结 (独立步骤)
+      - name: Run AI Summarizer
+        env:
+          DEDAO_API_TOKEN: ${{ secrets.DEDAO_API_TOKEN }}
+          OUTPUT_DIR: ${{ github.workspace }}/gitee_workspace/30_Resources
+        run: |
+          cd scripts_repo
+          uv run ai_summarizer.py
+          
+      # 7. 提交并推送到 Gitee (第二次：AI 总结)
+      - name: Push AI Data
+        working-directory: gitee_workspace
+        if: success()
+        run: |
+          git add .
+          if git diff --staged --quiet; then
+            echo "No AI summaries generated"
             exit 0
           fi
           
-          # 提交更改
-          timestamp=$(date "+%Y-%m-%d %H:%M:%S")
-          git commit -m "sync: Raindrop bookmarks $timestamp"
-          
-          # 推送回 Gitee
-          # 注意：checkout action 默认会持久化 token 到 .git/config，所以这里直接 push 即可
-          # 但为了保险，也可以使用带 token 的 URL
+          git commit -m "feat: add AI summaries"
           git push origin HEAD:main
