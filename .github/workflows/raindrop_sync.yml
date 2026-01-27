@@ -21,11 +21,7 @@ jobs:
       # 2. 检出 Gitee 私有仓库（存放笔记）
       - name: Checkout Gitee Repo
         run: |
-          # Debug: 打印 URL 结构 (Secrets 会被自动 Mask，主要看是否有多余的斜杠或路径)
-          echo "Debug Repo URL construction:"
-          echo "User: ${{ secrets.GITEE_USER }}"
-          echo "Repo: ${{ secrets.GITEE_REPO }}"
-          
+          # 使用 oauth2 作为鉴权用户名
           git clone https://oauth2:${{ secrets.GITEE_TOKEN }}@gitee.com/${{ secrets.GITEE_USER }}/${{ secrets.GITEE_REPO }}.git gitee_workspace
 
       # 3. 设置 Python 环境 (使用 uv)
