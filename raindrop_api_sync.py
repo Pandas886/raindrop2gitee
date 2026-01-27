@@ -234,6 +234,19 @@ class RaindropSync:
                 print(f"❌ 处理书签出错 ({raindrop_id}): {e}")
                 continue
         
+        # Write report file
+        if self.created_files:
+            workspace = os.getenv('GITHUB_WORKSPACE', '.')
+            report_path = Path(workspace) / 'new_files_list.txt'
+            
+            try:
+                with open(report_path, 'w', encoding='utf-8') as f:
+                    for filename in self.created_files:
+                        f.write(f"{filename}\n")
+                print(f"📝 已生成文件列表: {report_path} ({len(self.created_files)} 个文件)")
+            except Exception as e:
+                print(f"❌ 写入列表失败: {e}")
+
         print(f"\n📊 同步完成:")
         print(f"   - 新增: {new_count} 个文件")
         print(f"   - 跳过: {skipped_count} 个文件")
