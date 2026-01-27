@@ -60,4 +60,4 @@ jobs:
           # 推送回 Gitee
           # 注意：checkout action 默认会持久化 token 到 .git/config，所以这里直接 push 即可
           # 但为了保险，也可以使用带 token 的 URL
-          git push origin HEAD:master
+          git push origin HEAD:main
