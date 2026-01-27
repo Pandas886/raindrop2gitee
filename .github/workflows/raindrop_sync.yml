@@ -36,7 +36,7 @@ jobs:
           SYNC_DAYS: 3 # 频繁同步，只需要检查最近几天的即可
         run: |
           cd scripts_repo
-          uv run script/raindrop_api_sync.py
+          uv run raindrop_api_sync.py
 
       # 5. 提交并推送到 Gitee
       - name: Commit and Push to Gitee
