@@ -308,6 +308,7 @@ def inject_tags_into_frontmatter(content: str, tags: list[str]) -> str:
 def process_files(output_dir: str = '30_Resources/Raindrop', days: int = 3):
     """
     扫描并处理文件
+    优先读取 new_files_list.txt，如果不存在则扫描目录
     """
     dedao_token = os.getenv('DEDAO_API_TOKEN')
     zhipu_key = os.getenv('ZHIPU_API_KEY')
@@ -324,26 +325,41 @@ def process_files(output_dir: str = '30_Resources/Raindrop', days: int = 3):
         print("✨ 已启用 AI 自动标签 (Zhipu)")
     
     directory = Path(output_dir)
-    
     if not directory.exists():
         print(f"❌ 目录不存在: {directory}")
         return
 
-    print(f"🔍 开始扫描目录: {directory}")
-    print(f"   处理最近 {days} 天修改的文件")
+    # Check for report file
+    report_file = Path('new_files_list.txt')
+    target_files = []
+    
+    if report_file.exists():
+        print(f"� 发现同步列表: {report_file}")
+        try:
+            with open(report_file, 'r', encoding='utf-8') as f:
+                for line in f:
+                    filename = line.strip()
+                    if filename:
+                        file_path = directory / filename
+                        if file_path.exists():
+                            target_files.append(file_path)
+        except Exception as e:
+            print(f"⚠️ 读取列表失败: {e}")
+    else:
+        print(f"🔍 列表不存在，执行全量扫描 (最近 {days} 天)")
+        # Fallback to scan
+        cutoff_time = datetime.now() - timedelta(days=days)
+        for file_path in directory.glob('*.md'):
+            mtime = datetime.fromtimestamp(file_path.stat().st_mtime)
+            if mtime >= cutoff_time:
+                target_files.append(file_path)
 
-    # 计算时间阈值
-    cutoff_time = datetime.now() - timedelta(days=days)
+    print(f"🎯 待处理文件数: {len(target_files)}")
     
     count = 0
     processed = 0
     
-    for file_path in directory.glob('*.md'):
-        # 过滤修改时间
-        mtime = datetime.fromtimestamp(file_path.stat().st_mtime)
-        if mtime < cutoff_time:
-            continue
-            
+    for file_path in target_files:
         count += 1
         
         # 检查是否已有总结
@@ -392,6 +408,7 @@ def process_files(output_dir: str = '30_Resources/Raindrop', days: int = 3):
                 time.sleep(2)
             except Exception as e:
                 print(f"   ❌ 写入失败: {e}")
+            
         else:
             print(f"   ⏩ 跳过 (AI未返回内容)")
 
