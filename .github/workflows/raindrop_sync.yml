@@ -1,0 +1,65 @@
+name: Raindrop Sync
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'  # 每 5 分钟执行一次
+  workflow_dispatch:      # 允许手动触发
+
+jobs:
+  sync_and_push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      # 1. 检出当前仓库（包含脚本）
+      - name: Checkout Scripts Repo
+        uses: actions/checkout@v4
+        with:
+          path: scripts_repo
+
+      # 2. 检出 Gitee 私有仓库（存放笔记）
+      - name: Checkout Gitee Repo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.GITEE_USER }}/${{ secrets.GITEE_REPO }}
+          token: ${{ secrets.GITEE_TOKEN }}
+          path: gitee_workspace
+
+      # 3. 设置 Python 环境 (使用 uv)
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      # 4. 运行同步脚本
+      - name: Run Sync Script
+        env:
+          RAINDROP_API_TOKEN: ${{ secrets.RAINDROP_API_TOKEN }}
+          OUTPUT_DIR: ${{ github.workspace }}/gitee_workspace/30_Resources
+          SYNC_DAYS: 3 # 频繁同步，只需要检查最近几天的即可
+        run: |
+          cd scripts_repo
+          uv run script/raindrop_api_sync.py
+
+      # 5. 提交并推送到 Gitee
+      - name: Commit and Push to Gitee
+        working-directory: gitee_workspace
+        run: |
+          # 配置 Git 用户信息
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          # 检查是否有变更
+          git add .
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          
+          # 提交更改
+          timestamp=$(date "+%Y-%m-%d %H:%M:%S")
+          git commit -m "sync: Raindrop bookmarks $timestamp"
+          
+          # 推送回 Gitee
+          # 注意：checkout action 默认会持久化 token 到 .git/config，所以这里直接 push 即可
+          # 但为了保险，也可以使用带 token 的 URL
+          git push origin HEAD:master
