@@ -95,6 +95,85 @@ class AISummarizer:
             print(f"   ⚠️ AI 处理异常: {e}")
             return "", ""
 
+
+class AITagger:
+    """
+    智谱 AI 标签生成器
+    """
+    def __init__(self, api_key: str):
+        self.api_key = api_key
+        self.url = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
+        self.model = "glm-4.7-flash"
+
+    def generate_tags(self, content: str) -> list[str]:
+        """
+        根据内容生成标签
+        """
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        prompt = """You are a bot in a read-it-later app and your responsibility is to help with automatic tagging.
+Please analyze the text provided below and suggest relevant tags that describe its key themes, topics, and main ideas. The rules are:
+- Aim for a variety of tags, including broad categories, specific keywords, and potential sub-genres.
+- The tags language must be in chinese.
+- If it's a famous website you may also include a tag for the website. If the tag is not generic enough, don't include it.
+- The content can include text for cookie consent and privacy policy, ignore those while tagging.
+- Aim for 3-5 tags.
+- If there are no good tags, leave the array empty.
+
+CONTENT START HERE
+{content}
+CONTENT END HERE
+
+You must respond in JSON with the key "tags" and the value is an array of string tags.
+"""
+        
+        payload = {
+            "model": self.model,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "你是一个有用的AI助手。"
+                },
+                {
+                    "role": "user",
+                    "content": prompt.replace("{content}", content)
+                }
+            ],
+            "stream": False,
+            "temperature": 0.1
+        }
+
+        try:
+            print(f"   🏷️ 正在请求 AI 标签...")
+            response = requests.post(self.url, headers=headers, json=payload, timeout=30)
+            if response.status_code != 200:
+                print(f"   ⚠️ 标签请求失败: {response.status_code} - {response.text}")
+                return []
+                
+            data = response.json()
+            if "choices" in data and len(data["choices"]) > 0:
+                content_str = data["choices"][0]["message"]["content"]
+                # 尝试提取 JSON
+                try:
+                    # 某些情况下 AI 可能返回 ```json ... ``` 包裹
+                    json_match = re.search(r'\{.*\}', content_str, re.DOTALL)
+                    if json_match:
+                        json_content = json_match.group(0)
+                        tags_obj = json.loads(json_content)
+                        return tags_obj.get("tags", [])
+                except Exception as e:
+                    print(f"   ⚠️ 标签解析失败: {e}")
+                    
+            return []
+            
+        except Exception as e:
+            print(f"   ⚠️ 标签处理异常: {e}")
+            return []
+
+
 def extract_url_from_file(file_path: Path) -> str:
     """
     从 Markdown 文件中提取 URL
@@ -131,12 +210,20 @@ def process_files(output_dir: str = '30_Resources/Raindrop', days: int = 3):
     """
     扫描并处理文件
     """
-    api_token = os.getenv('DEDAO_API_TOKEN')
-    if not api_token:
+    dedao_token = os.getenv('DEDAO_API_TOKEN')
+    zhipu_key = os.getenv('ZHIPU_API_KEY')
+    
+    if not dedao_token:
         print("❌ 未找到 DEDAO_API_TOKEN，跳过 AI 总结步骤")
         return
 
-    ai = AISummarizer(api_token)
+    ai_summarizer = AISummarizer(dedao_token)
+    
+    ai_tagger = None
+    if zhipu_key:
+        ai_tagger = AITagger(zhipu_key)
+        print("✨ 已启用 AI 自动标签 (Zhipu)")
+    
     directory = Path(output_dir)
     
     if not directory.exists():
@@ -172,16 +259,29 @@ def process_files(output_dir: str = '30_Resources/Raindrop', days: int = 3):
             
         print(f"👉 处理: {file_path.name}")
         
-        # 调用 AI
-        title, content = ai.summarize(url)
+        # 1. 调用 AI 总结
+        title, content = ai_summarizer.summarize(url)
         
         if content:
+            # 2. 调用 AI 标签 (如果有内容)
+            tags = []
+            if ai_tagger:
+                # 使用生成的总结内容作为输入，节省 Token 且更精准
+                tags = ai_tagger.generate_tags(content[:2000]) # 限制长度防止超长
+            
             try:
                 with open(file_path, 'a', encoding='utf-8') as f:
                     f.write(f"\n\n## 🤖 AI 深度总结\n\n")
                     if title:
                         f.write(f"**{title}**\n\n")
                     f.write(f"{content}\n")
+                    
+                    if tags:
+                        # Obsidian 格式: #Tag1 #Tag2
+                        tag_line = ' '.join([f"#{t}" for t in tags])
+                        f.write(f"\n**AI 标签**: {tag_line}\n")
+                        print(f"   🏷️  添加标签: {tag_line}")
+                        
                 print(f"   ✅ 已追加总结")
                 processed += 1
                 # 避免触发频率限制，简单休眠

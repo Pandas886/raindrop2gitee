@@ -63,6 +63,7 @@ jobs:
       - name: Run AI Summarizer
         env:
           DEDAO_API_TOKEN: ${{ secrets.DEDAO_API_TOKEN }}
+          ZHIPU_API_KEY: ${{ secrets.ZHIPU_API_KEY }}
           OUTPUT_DIR: ${{ github.workspace }}/gitee_workspace/30_Resources
         run: |
           cd scripts_repo

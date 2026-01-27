@@ -36,6 +36,7 @@
 | `GITEE_REPO` | Gitee 仓库名称 | `SecondBrain` |
 | `GITEE_TOKEN` | Gitee 私人令牌 (PAT) | `d7e8f9...` |
 | `DEDAO_API_TOKEN` | (可选) 得到/罗辑实验室 Token，用于 AI 总结 | `eyJ...` |
+| `ZHIPU_API_KEY` | (可选) 智谱 AI Key，用于自动生成标签 | `...` |
 
 > ⚠️ **注意**: `GITEE_USER` 必须与 Gitee 仓库 URL 中的 Owner 严格一致。如果仓库地址是 `gitee.com/Company/Project`，则 `GITEE_USER` 必须填 `Company`，不能填您的个人登录名（除非二者相同）。
 
