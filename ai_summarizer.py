@@ -120,7 +120,7 @@ Please analyze the text provided below and suggest relevant tags that describe i
 - The tags language must be in chinese.
 - If it's a famous website you may also include a tag for the website. If the tag is not generic enough, don't include it.
 - The content can include text for cookie consent and privacy policy, ignore those while tagging.
-- Aim for 3-5 tags.
+- Aim for 3-5 tags.每个 tag 不得包含任何空格或特殊字符
 - If there are no good tags, leave the array empty.
 
 CONTENT START HERE
